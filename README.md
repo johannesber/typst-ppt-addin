@@ -1,0 +1,58 @@
+# Typst PowerPoint Add-in
+
+A PowerPoint taskpane add-in that renders Typst snippets to SVG via a Rust/WebAssembly engine and inserts them into slides. Each inserted shape carries the original Typst source in its alt text so you can reselect and update it later without losing positioning.
+
+## How it works
+- `engine/`: Rust crate compiled to WebAssembly with `wasm-bindgen`, wrapping Typst to produce SVG. A bundled math font is initialized at runtime.
+- `web/`: Taskpane UI (`index.html` + `script.js`), manifest, and a simple HTTPS static server for local development. `script.js` compiles Typst, inserts/replaces shapes, and round-trips the Typst source from a shape's `altTextDescription`.
+
+## Prerequisites
+- PowerPoint with Office JS add-ins enabled.
+- Node.js.
+- `wasm-pack` installed (`cargo install wasm-pack`).
+- A locally trusted HTTPS certificate for `localhost` (paths default to `web/certs/localhost.{crt,key}`).
+
+## Setup
+1) Install JS tooling (run once):
+```bash
+npm install
+```
+2) Build the Typst WASM bundle (outputs to `web/pkg/`):
+```bash
+npm run build:engine
+```
+3) Create and trust a `localhost` certificate (mkcert recommended):
+```bash
+mkcert -install
+mkcert -cert-file web/certs/localhost.crt -key-file web/certs/localhost.key localhost
+# or with OpenSSL:
+# openssl req -x509 -newkey rsa:2048 -nodes -keyout web/certs/localhost.key -out web/certs/localhost.crt -days 365 -subj "/CN=localhost"
+```
+4) Start the HTTPS dev server (defaults to `https://localhost:3000`):
+```bash
+npm run dev
+# optional env: PORT=3443 ROOT=/abs/path CERT=/path/to.crt KEY=/path/to.key
+```
+5) Point the manifest at your server if you change host/port (`web/manifest.xml` → `SourceLocation`).
+
+## Sideload into PowerPoint
+1. PowerPoint → File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs.  
+2. Add a Shared Folder catalog pointing to this repo (where `web/manifest.xml` lives) and check “Show in Menu.” (this requires the folder to be shared as a network folder so that the Catalog URL will be something like `\\your-device\path\to\repo\web`)
+3. Restart PowerPoint → Home → Add-ins → Advanced → pick the Typst add-in.  
+4. Open the taskpane; wait for “Insert / Update” once WASM loads.
+
+## Usage
+- Enter Typst code (e.g. `$a^2 + b^2 = c^2$`) and click **Insert / Update** to place an SVG on the current slide.
+- Select an existing Typst-generated shape to automatically reload its source into the textbox, edit, and re-run Insert / Update to replace it in place (position preserved).
+- Shapes are tagged with `altTextDescription` starting `TYPST:` plus the encoded source; math font is served from `web/assets/math-font.ttf` on the same origin.
+
+## NPM scripts
+- `npm run build:engine` — Build the Rust engine to WebAssembly into `web/pkg/`.
+- `npm run dev` — HTTPS static server for local development (`web/dev-server.js`).
+- `npm start` — Launch the Office add-in debugger with `web/manifest.xml`.
+- `npm run stop` — Stop the Office add-in debugger.
+
+## Tips
+- If insertion silently fails, check the taskpane console for “Insert failed” or “WASM Load Error.”
+- Ensure the built `pkg/typst_ppt_engine.js` and `.wasm` file stay in `web/pkg/`; the stub file must be replaced by the `wasm-pack` output.
+- Keep the math font available at `/assets/math-font.ttf`; missing font can distort rendering.
