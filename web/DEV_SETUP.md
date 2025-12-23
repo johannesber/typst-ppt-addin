@@ -42,11 +42,11 @@ npm run dev
 
 ## 5) Sideload into PowerPoint
 1. Open PowerPoint → File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs.
-2. Add a Shared Folder catalog pointing to this folder (where `manifest.xml` lives) and check “Show in Menu”.
+2. Add a Shared Folder catalog pointing to this folder (where `manifest.xml` lives) and check "Show in Menu".
 3. Restart PowerPoint, then Insert → My Add-ins → Shared Folder → select the Typst add-in.
 
 ## 6) Manual test flow
-- Open the taskpane; wait for “Insert / Update” (WASM ready).
+- Open the taskpane; wait for "Insert / Update" (WASM ready).
 - Enter Typst (e.g., `$a^2+b^2=c^2$`) → Insert: should place an SVG with alt-text starting `TYPST:`.
 - Select that shape: the Typst source should repopulate the textbox.
 - Edit the code and click Insert/Update: should replace in place (same position).
@@ -54,4 +54,4 @@ npm run dev
 
 ## Notes
 - Keep `assets/math-font.ttf` reachable at `/assets/math-font.ttf` on the same HTTPS origin.
-- If insertion silently fails, check the taskpane console for “Insert failed” or “WASM Load Error”.
+- If insertion silently fails, check the taskpane console for "Insert failed" or "WASM Load Error".
