@@ -51,10 +51,41 @@ const applyHeightToSvg = (svg, targetHeight) => {
 
 let isWasmReady = false;
 let lastTypstSelection = null; // { slideId, shapeId, left, top, width, height }
+let compilerConfig = { compilerUrl: null, compilerAuth: null };
+
+async function loadCompilerConfig() {
+    try {
+        const res = await fetch("./config.json", { cache: "no-store" });
+        if (res.ok) {
+            const json = await res.json();
+            compilerConfig = {
+                compilerUrl: json.compilerUrl || window.TYPST_COMPILER_URL || null,
+                compilerAuth: json.compilerAuth || window.TYPST_COMPILER_AUTH || null,
+            };
+        } else {
+            compilerConfig = {
+                compilerUrl: window.TYPST_COMPILER_URL || null,
+                compilerAuth: window.TYPST_COMPILER_AUTH || null,
+            };
+        }
+    } catch (_) {
+        compilerConfig = {
+            compilerUrl: window.TYPST_COMPILER_URL || null,
+            compilerAuth: window.TYPST_COMPILER_AUTH || null,
+        };
+    }
+    if (compilerConfig.compilerUrl) {
+        debug("Remote compiler configured", compilerConfig.compilerUrl);
+        document.getElementById('insertBtn').innerText = "Insert / Update";
+        document.getElementById('insertBtn').disabled = false;
+        setStatus("Remote compiler ready");
+    }
+}
 
 // --- INITIALIZATION ---
 Office.onReady(async (info) => {
     if (info.host === Office.HostType.PowerPoint) {
+        await loadCompilerConfig();
         await setupWasm();
         
         // Listen for when the user clicks a different shape
@@ -73,28 +104,81 @@ async function setupWasm() {
         init_fonts(new Uint8Array(fontBuffer));
         
         isWasmReady = true;
-        document.getElementById('insertBtn').innerText = "Insert / Update";
-        document.getElementById('insertBtn').disabled = false;
-        setStatus("WASM ready");
+        // If no remote compiler is present, WASM readiness enables the button
+        if (!compilerConfig.compilerUrl) {
+            document.getElementById('insertBtn').innerText = "Insert / Update";
+            document.getElementById('insertBtn').disabled = false;
+            setStatus("WASM ready");
+        } else {
+            debug("WASM initialized (backup to remote compiler)");
+        }
         debug("WASM initialized");
     } catch (err) {
         console.error("WASM Load Error:", err);
-        setStatus("Failed to load WASM. See console for details.", true);
+        if (!compilerConfig.compilerUrl) {
+            setStatus("Failed to load WASM. See console for details.", true);
+        } else {
+            setStatus("Using remote compiler (WASM load failed).");
+            document.getElementById('insertBtn').disabled = false;
+        }
+    }
+}
+
+async function compileRemote(source) {
+    if (!compilerConfig.compilerUrl) return null;
+    setStatus("Compiling via remote service...");
+    debug("Remote compile request to", compilerConfig.compilerUrl);
+    try {
+        const headers = { "Content-Type": "application/json" };
+        if (compilerConfig.compilerAuth) {
+            headers["Authorization"] = `Bearer ${compilerConfig.compilerAuth}`;
+        }
+        const res = await fetch(compilerConfig.compilerUrl, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ source, format: "svg" }),
+        });
+        if (!res.ok) {
+            debug("Remote compile HTTP error", res.status, res.statusText);
+            throw new Error(`Remote compile failed (${res.status})`);
+        }
+        const data = await res.json();
+        if (data.error) {
+            debug("Remote compile returned error", data.error);
+            throw new Error(data.error);
+        }
+        if (!data.svg) {
+            debug("Remote compile missing svg field", data);
+            throw new Error("Remote compile did not return SVG");
+        }
+        debug("Remote compile success; svg length", data.svg.length);
+        return data.svg;
+    } catch (err) {
+        console.error("Remote compile error:", err);
+        setStatus(`Remote compile failed: ${err.message}`, true);
+        return `Error: ${err.message}`;
     }
 }
 
 // --- CORE LOGIC: INSERT OR REPLACE ---
 async function handleAction() {
-    if (!isWasmReady) return;
     const code = document.getElementById('typstInput').value;
     debug("Handle action start");
     let svgOutput;
-    try {
-        svgOutput = compile_typst(code);
-    } catch (err) {
-        console.error("Compile Error:", err);
-        setStatus("Typst compile failed. See console for details.", true);
-        return;
+    if (compilerConfig.compilerUrl) {
+        svgOutput = await compileRemote(code);
+    } else {
+        if (!isWasmReady) {
+            setStatus("WASM not ready; cannot compile.", true);
+            return;
+        }
+        try {
+            svgOutput = compile_typst(code);
+        } catch (err) {
+            console.error("Compile Error:", err);
+            setStatus("Typst compile failed. See console for details.", true);
+            return;
+        }
     }
 
     if (typeof svgOutput !== "string" || svgOutput.startsWith("Error:")) {

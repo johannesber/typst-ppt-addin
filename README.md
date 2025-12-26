@@ -36,8 +36,20 @@ mkcert -cert-file web/certs/localhost.crt -key-file web/certs/localhost.key loca
 ```bash
 npm run dev
 # optional env: PORT=3443 ROOT=/abs/path CERT=/path/to.crt KEY=/path/to.key
+# optional remote compiler offload:
+#   COMPILER_URL=https://your-compiler-endpoint
+#   COMPILER_AUTH=token-for-bearer-auth (optional)
 ```
 5) Point the manifest at your server if you change host/port (`web/manifest.xml` → `SourceLocation`).
+
+### Run the (optional) compiler service
+This service shells out to the Typst CLI so packages auto-download and compile:
+```bash
+# install typst CLI first, e.g.: cargo install typst-cli
+npm run compiler
+# env: COMPILER_PORT=4000 COMPILER_HOST=0.0.0.0 TYPST_BIN=typst MAX_BODY_BYTES=1000000
+```
+Then set `COMPILER_URL=http://localhost:4000/compile` before `npm run dev` so the add-in posts to it.
 
 ## Sideload into PowerPoint
 1. PowerPoint → File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs.  
@@ -49,6 +61,7 @@ npm run dev
 - Enter Typst code (e.g. `$a^2 + b^2 = c^2$`) and click **Insert / Update** to place an SVG on the current slide.
 - Select an existing Typst-generated shape to automatically reload its source into the textbox, edit, and re-run Insert / Update to replace it in place (position preserved).
 - Shapes are tagged with `altTextDescription` starting `TYPST:` plus the encoded source; math font is served from `web/assets/math-font.ttf` on the same origin.
+- If `COMPILER_URL` is set (see above), the add-in POSTs `{ source, format: "svg" }` to that endpoint and uses the returned `svg` field. Local WASM acts as a fallback only when no remote compiler is configured.
 
 ## NPM scripts
 - `npm run build:engine` — Build the Rust engine to WebAssembly into `web/pkg/`.

@@ -4,6 +4,7 @@
   "scripts": {
     "build:engine": "cd engine && wasm-pack build --target web --out-dir ../web/pkg",
     "dev": "node web/dev-server.js",
+    "compiler": "node compiler-server.js",
     "start": "office-addin-debugging start web/manifest.xml desktop",
     "stop": "office-addin-debugging stop web/manifest.xml"
   },

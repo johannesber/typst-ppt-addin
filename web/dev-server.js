@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 const ROOT = process.env.ROOT || __dirname;
 const CERT_PATH = process.env.CERT || path.join(__dirname, "certs", "localhost.crt");
 const KEY_PATH = process.env.KEY || path.join(__dirname, "certs", "localhost.key");
+const COMPILER_URL = process.env.COMPILER_URL || null;
+const COMPILER_AUTH = process.env.COMPILER_AUTH || null;
 
 function loadTls() {
   return {
@@ -58,6 +60,12 @@ const server = https.createServer(loadTls(), (req, res) => {
   const urlPath = req.url.split("?")[0];
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, "");
   let filePath = path.join(ROOT, safePath);
+
+  if (urlPath === "/config.json") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ compilerUrl: COMPILER_URL, compilerAuth: COMPILER_AUTH }));
+    return;
+  }
 
   // Default to index.html for root or directory requests.
   if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {

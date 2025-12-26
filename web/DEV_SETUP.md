@@ -36,6 +36,19 @@ npm run dev
 ```
 - Default: `https://localhost:3000` serving the repo root.
 - Env overrides: `PORT=3443`, `ROOT=/path/to/dir`, `CERT=/path/to/cert.crt`, `KEY=/path/to/cert.key`.
+- Optional remote compiler offload:
+  - `COMPILER_URL=https://your-compiler-endpoint` to POST `{ source, format: "svg" }`.
+- The add-in fetches `/config.json` from the dev server to pick these up; if `COMPILER_URL` is set, local WASM is used only as a fallback.
+
+## 3.5) Run the optional compiler service (Typst CLI)
+This service shells out to the Typst CLI so packages auto-download:
+```bash
+# install typst CLI first, e.g.:
+# cargo install typst-cli
+npm run compiler
+# env: COMPILER_PORT=4000 COMPILER_HOST=0.0.0.0 TYPST_BIN=typst MAX_BODY_BYTES=1000000
+```
+Then set `COMPILER_URL=http://localhost:4000/compile` before `npm run dev` to make the add-in use it.
 
 ## 4) Verify manifest matches the server
 `manifest.xml` currently points to `https://localhost:3000/index.html`. If you change the host/port, update `SourceLocation` accordingly.
