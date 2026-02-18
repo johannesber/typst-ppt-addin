@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> Make sure to check out [PPTypst](https://github.com/Splines/pptypst/), a more production-ready version that was forked from this project.
+
 # PoC: Typst PowerPoint Add-in
 
 Note: this project is merely a proof of concept and by no means production-ready. It was built (50% vibe-coded) on two evenings for fun and learning.
